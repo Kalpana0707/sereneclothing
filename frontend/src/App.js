@@ -8,40 +8,72 @@ function App() {
     return savedCart ? JSON.parse(savedCart) : [];
   });
 
+  const [search, setSearch] = useState("");
+
   useEffect(() => {
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
 
   const addToCart = (product) => {
-    setCart([...cart, product]);
+    const exist = cart.find(item => item.name === product.name);
+
+    if (exist) {
+      const updatedCart = cart.map(item =>
+        item.name === product.name
+          ? { ...item, qty: item.qty + 1 }
+          : item
+      );
+      setCart(updatedCart);
+    } else {
+      setCart([...cart, { ...product, qty: 1 }]);
+    }
   };
 
-  const total = cart.reduce((sum, item) => sum + item.price, 0);
+  const increaseQty = (name) => {
+    const updatedCart = cart.map(item =>
+      item.name === name
+        ? { ...item, qty: item.qty + 1 }
+        : item
+    );
+    setCart(updatedCart);
+  };
 
-const checkout = async () => {
-  try {
-    console.log("Sending:", cart);
+  const decreaseQty = (name) => {
+    const updatedCart = cart
+      .map(item =>
+        item.name === name
+          ? { ...item, qty: item.qty - 1 }
+          : item
+      )
+      .filter(item => item.qty > 0);
 
-    const res = await fetch("http://localhost:5000/order", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(cart),
-    });
+    setCart(updatedCart);
+  };
 
-    const data = await res.json();
+  const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
 
-    console.log("Response:", data);
+  const checkout = async () => {
+    try {
+      const res = await fetch("https://sereneclothing.onrender.com/order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(cart),
+      });
 
-    alert("Order placed successfully!");
-    setCart([]);
+      if (!res.ok) throw new Error("Server error");
 
-  } catch (error) {
-    console.error(error);
-    alert("Checkout failed");
-  }
-};
+      await res.json();
+
+      alert("Order placed!");
+      setCart([]);
+    } catch (err) {
+      console.log(err);
+      alert("Checkout failed");
+    }
+  };
+
   const products = [
     {
       name: "Maroon Sweetheart Neck Bodycon Maxi Dress",
@@ -75,45 +107,57 @@ const checkout = async () => {
 
       <nav className="navbar">
         <h2>Serene</h2>
-        <div>
-          <a href="/">Home</a>
-          <a href="/shop">Shop</a>
-          <a href="/contact">Contact</a>
-        </div>
       </nav>
 
       <div className="hero">
-        <h1>Serene Clothing</h1>
-        <p>Elegant Women Wear</p>
-        <button>Shop Now</button>
+        <div className="hero-content">
+          <h1>Serene Clothing</h1>
+          <p>Discover elegance in every outfit</p>
+          <button>Shop Now</button>
+        </div>
+      </div>
+
+      <div className="search-bar">
+        <input
+          type="text"
+          placeholder="Search for dresses..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
 
       <div className="products">
-        {products.map((p, i) => (
-          <div className="card" key={i}>
-            <img src={p.img} alt="product" />
-            <h3>{p.name}</h3>
-            <p>₹{p.price}</p>
-            <button onClick={() => addToCart(p)}>Add to Cart</button>
-          </div>
-        ))}
+        {products
+          .filter(p =>
+            p.name.toLowerCase().includes(search.toLowerCase())
+          )
+          .map((p, i) => (
+            <div className="card" key={i}>
+              <img src={p.img} alt="product" />
+              <h3>{p.name}</h3>
+              <p>₹{p.price}</p>
+              <button onClick={() => addToCart(p)}>Add to Cart</button>
+            </div>
+          ))}
       </div>
 
       <div className="cart">
         <h2>🛒 Cart ({cart.length})</h2>
 
         {cart.map((item, i) => (
-          <p key={i}>{item.name} - ₹{item.price}</p>
+          <div key={i}>
+            <p>{item.name}</p>
+            <p>₹{item.price} × {item.qty}</p>
+
+            <button onClick={() => decreaseQty(item.name)}>-</button>
+            <span>{item.qty}</span>
+            <button onClick={() => increaseQty(item.name)}>+</button>
+          </div>
         ))}
 
         <h3>Total: ₹{total}</h3>
 
-      <button onClick={() => {
-  
-  checkout();
-}}>
-  Checkout
-</button>
+        <button onClick={checkout}>Checkout</button>
       </div>
 
     </div>

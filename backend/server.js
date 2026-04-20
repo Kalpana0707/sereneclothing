@@ -28,7 +28,6 @@ app.get("/", (req, res) => {
 app.post("/order", async (req, res) => {
   const newOrder = new Order({ items: req.body });
   await newOrder.save();
-  console.log("Saved in DB");
   res.json({ message: "Order saved in DB" });
 });
 
